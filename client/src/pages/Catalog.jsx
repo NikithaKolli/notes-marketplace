@@ -8,16 +8,31 @@ function Catalog({ onSelectNote }) {
   const [semesterFilter, setSemesterFilter] = useState('All');
 
   useEffect(() => {
-    axios.get('https://notes-marketplace-api.onrender.com')
-      .then((res) => setNotes(res.data))
-      .catch((err) => console.error(err));
+    // API ఎండ్‌పాయింట్ /api/notes ఉండే అవకాశం ఎక్కువ
+    axios.get('https://notes-marketplace-api.onrender.com/api/notes')
+      .then((res) => {
+        // res.data అర్రే అయితేనే సెట్ చేస్తుంది, లేకపోతే res.data.notes లేదా ఖాళీ అర్రే ఇస్తుంది
+        if (Array.isArray(res.data)) {
+          setNotes(res.data);
+        } else if (res.data && Array.isArray(res.data.notes)) {
+          setNotes(res.data.notes);
+        } else {
+          setNotes([]);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch notes:', err);
+        setNotes([]);
+      });
   }, []);
 
-  const subjects = ['All', ...new Set(notes.map((n) => n.subject))];
-  const semesters = ['All', ...new Set(notes.map((n) => n.semester))];
+  const safeNotes = Array.isArray(notes) ? notes : [];
 
-  const filteredNotes = notes.filter((note) => {
-    const matchesSearch = note.title.toLowerCase().includes(search.toLowerCase());
+  const subjects = ['All', ...new Set(safeNotes.map((n) => n.subject).filter(Boolean))];
+  const semesters = ['All', ...new Set(safeNotes.map((n) => n.semester).filter(Boolean))];
+
+  const filteredNotes = safeNotes.filter((note) => {
+    const matchesSearch = (note.title || '').toLowerCase().includes(search.toLowerCase());
     const matchesSubject = subjectFilter === 'All' || note.subject === subjectFilter;
     const matchesSemester = semesterFilter === 'All' || note.semester === semesterFilter;
     return matchesSearch && matchesSubject && matchesSemester;
