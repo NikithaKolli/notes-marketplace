@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import './App.css';
-import Upload from './pages/Upload';
+import Upload from './pages/upload';
 import Catalog from './pages/Catalog';
 import NoteDetails from './pages/NoteDetails';
 import Login from './pages/Login';
