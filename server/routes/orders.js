@@ -40,7 +40,7 @@ router.post('/purchase', async (req, res) => {
     );
 
     // 5. Download link create cheyadam
-    const downloadLink = `http://localhost:5000/uploads/${note.filename}`;
+    const downloadLink = `https://notes-marketplace-api.onrender.com/uploads/${note.filename}`;
 
     // 6. Email pampadam
     await sendLicenseEmail(buyer_email, note.title, licenseKey, downloadLink);
