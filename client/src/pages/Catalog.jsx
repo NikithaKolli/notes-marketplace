@@ -8,7 +8,7 @@ function Catalog({ onSelectNote }) {
   const [semesterFilter, setSemesterFilter] = useState('All');
 
   useEffect(() => {
-    axios.get('http://localhost:5000/api/notes')
+    axios.get('https://notes-marketplace-api.onrender.com')
       .then((res) => setNotes(res.data))
       .catch((err) => console.error(err));
   }, []);

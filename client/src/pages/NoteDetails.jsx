@@ -19,7 +19,7 @@ function NoteDetails({ noteId, onBack }) {
     }
     setStatus('Processing...');
     try {
-      const res = await axios.post('http://localhost:5000/api/orders/purchase', {
+      const res = await axios.post('https://notes-marketplace-api.onrender.com', {
         note_id: noteId,
         buyer_email: email
       });

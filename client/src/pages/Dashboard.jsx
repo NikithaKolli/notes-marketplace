@@ -6,7 +6,7 @@ function Dashboard({ user }) {
 
   useEffect(() => {
     if (!user) return;
-    axios.get(`http://localhost:5000/api/notes/seller/${user.id}`)
+    axios.get(`https://notes-marketplace-api.onrender.com`)
       .then((res) => setNotes(res.data))
       .catch((err) => console.error(err));
   }, [user]);

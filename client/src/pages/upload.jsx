@@ -22,7 +22,7 @@ function Upload({ sellerId }) {
     formData.append('file', file);
 
     try {
-      const res = await axios.post('http://localhost:5000/api/notes/upload', formData);
+      const res = await axios.post('https://notes-marketplace-api.onrender.com', formData);
       setMessage('✅ Upload successful! Note ID: ' + res.data.noteId);
     } catch (err) {
       setMessage('❌ Error: ' + err.message);

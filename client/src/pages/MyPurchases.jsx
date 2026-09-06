@@ -6,7 +6,7 @@ function MyPurchases({ user }) {
 
   useEffect(() => {
     if (!user) return;
-    axios.get(`http://localhost:5000/api/orders/my/${user.id}`)
+    axios.get(`https://notes-marketplace-api.onrender.com`)
       .then((res) => setPurchases(res.data))
       .catch((err) => console.error(err));
   }, [user]);

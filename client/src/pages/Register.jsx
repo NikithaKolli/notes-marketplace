@@ -11,7 +11,7 @@ function Register({ onRegistered }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/auth/register', { name, email, password, role });
+      await axios.post('https://notes-marketplace-api.onrender.com', { name, email, password, role });
       setMessage('✅ Registered successfully! Redirecting to login...');
       setTimeout(() => onRegistered(), 1500);
     } catch (err) {
