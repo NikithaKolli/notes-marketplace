@@ -31,41 +31,20 @@ function NoteDetails({ noteId, onBack }) {
     }
     setStatus('Processing...');
 
-    const candidateEndpoints = [
-      `${API_BASE}/api/orders`,
-      `${API_BASE}/orders`,
-      `${API_BASE}/api/purchases`,
-      `${API_BASE}/api/notes/buy`,
-      `${API_BASE}/api/buy`
-    ];
+    try {
+      const res = await axios.post(`${API_BASE}/api/orders/purchase`, {
+        note_id: noteId,
+        buyer_email: email
+      });
 
-    const payload = {
-      note_id: noteId,
-      noteId: noteId,
-      buyer_email: email,
-      email: email
-    };
-
-    let success = false;
-    let lastError = '';
-
-    for (const url of candidateEndpoints) {
-      try {
-        const res = await axios.post(url, payload);
-        const licenseKey = res.data?.licenseKey || res.data?.license_key || 'SUCCESS-KEY';
-        setStatus(`✅ Purchase successful! License Key: ${licenseKey}. Check your email.`);
-        success = true;
-        break;
-      } catch (err) {
-        lastError = err.response?.data?.message || err.message;
-        if (err.response && err.response.status !== 404) {
-          break;
-        }
+      if (res.data && res.data.success) {
+        setStatus(`✅ Purchase successful! License Key: ${res.data.licenseKey}. Check your email.`);
+      } else {
+        setStatus(`❌ Error: ${res.data?.error || 'Purchase failed'}`);
       }
-    }
-
-    if (!success) {
-      setStatus(`❌ Error: ${lastError}`);
+    } catch (err) {
+      const errMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      setStatus(`❌ Error: ${errMsg}`);
     }
   };
 
