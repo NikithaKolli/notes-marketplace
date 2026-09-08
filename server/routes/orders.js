@@ -42,23 +42,31 @@ router.post('/purchase', async (req, res) => {
     // 5. Download link create cheyadam
     const downloadLink = `https://notes-marketplace-api.onrender.com/uploads/${note.filename}`;
 
-    // 6. Email pampadam (optional error ignore)
+    // 6. Email background lo pampadam (request aagakunda untundi)
     try {
-      await sendLicenseEmail(buyer_email, note.title, licenseKey, downloadLink);
+      if (typeof sendLicenseEmail === 'function') {
+        sendLicenseEmail(buyer_email, note.title, licenseKey, downloadLink).catch(err => {
+          console.error('Email sending failed (non-blocking):', err.message);
+        });
+      }
     } catch (mailErr) {
-      console.error('Mail error ignored:', mailErr.message);
+      console.error('Mail trigger error:', mailErr.message);
     }
 
     // 7. downloads_count +1
     await db.query('UPDATE notes SET downloads_count = downloads_count + 1 WHERE id = ?', [note_id]);
 
-    res.json({ success: true, licenseKey, downloadLink });
+    // Fast ga response pampadam
+    return res.json({ success: true, licenseKey, downloadLink });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: err.message });
+    console.error('Purchase route error:', err);
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
+// ==========================================
+// ROUTE: Oka user konna notes anni (My Purchases page kosam)
+// ==========================================
 router.get('/my/:userId', async (req, res) => {
   try {
     const [rows] = await db.query(
