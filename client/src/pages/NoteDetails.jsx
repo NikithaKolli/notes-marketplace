@@ -31,10 +31,14 @@ function NoteDetails({ noteId, onBack }) {
     }
     setStatus('Processing...');
 
+    // LocalStorage nunchi login user data teesukuntam
+    const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+
     try {
       const res = await axios.post(`${API_BASE}/api/orders/purchase`, {
         note_id: noteId,
-        buyer_email: email
+        buyer_email: email,
+        user_id: storedUser.id || null
       });
 
       if (res.data && res.data.success) {

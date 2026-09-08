@@ -3,56 +3,55 @@ import axios from 'axios';
 
 function MyPurchases({ user }) {
   const [purchases, setPurchases] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const API_BASE = 'https://notes-marketplace-api.onrender.com';
 
   useEffect(() => {
-    if (!user) return;
-    
-    // యూజర్ ఐడీ లేదా టోకెన్‌తో ఆర్డర్స్‌ని పొందడానికి సరైన ఎండ్‌పాయింట్
-    const endpoint = user.id 
-      ? `https://notes-marketplace-api.onrender.com/api/orders/user/${user.id}` 
-      : 'https://notes-marketplace-api.onrender.com/api/orders';
+    const currentUser = user || JSON.parse(localStorage.getItem('user') || '{}');
+    if (!currentUser?.id) {
+      setLoading(false);
+      return;
+    }
 
-    axios.get(endpoint)
+    axios.get(`${API_BASE}/api/orders/my/${currentUser.id}`)
       .then((res) => {
-        if (Array.isArray(res.data)) {
-          setPurchases(res.data);
-        } else if (res.data && Array.isArray(res.data.orders)) {
-          setPurchases(res.data.orders);
-        } else if (res.data && Array.isArray(res.data.purchases)) {
-          setPurchases(res.data.purchases);
-        } else {
-          setPurchases([]);
-        }
+        setPurchases(res.data);
+        setLoading(false);
       })
       .catch((err) => {
-        console.error('Failed to fetch purchases:', err);
-        setPurchases([]);
+        console.error(err);
+        setLoading(false);
       });
   }, [user]);
 
-  const safePurchases = Array.isArray(purchases) ? purchases : [];
+  if (loading) return <p style={{ textAlign: 'center', marginTop: '40px' }}>Loading purchases...</p>;
 
   return (
-    <div className="page">
-      <span className="eyebrow">Your library</span>
+    <div className="container" style={{ maxWidth: '800px', margin: '30px auto', padding: '0 20px' }}>
       <h2>My Purchases</h2>
-
-      {safePurchases.length === 0 && <p>You haven't purchased any notes yet.</p>}
-
-      {safePurchases.map((p) => (
-        <div key={p.order_id || p.id} className="list-card">
-          <h4>{p.title}</h4>
-          <p className="meta">Subject: {p.subject}</p>
-          <p>License Key: <code>{p.license_key}</code></p>
-          <a 
-            href={p.file_url || `https://notes-marketplace-api.onrender.com/uploads/${p.filename}`} 
-            target="_blank" 
-            rel="noreferrer"
-          >
-            <button className="btn-secondary">Download PDF</button>
-          </a>
+      {purchases.length === 0 ? (
+        <p>You have not purchased any notes yet.</p>
+      ) : (
+        <div style={{ display: 'grid', gap: '15px', marginTop: '20px' }}>
+          {purchases.map((item) => (
+            <div key={item.order_id} style={{ border: '1px solid #ddd', padding: '15px', borderRadius: '8px', background: '#fff' }}>
+              <h3 style={{ margin: '0 0 5px 0' }}>{item.title}</h3>
+              <p style={{ margin: '0 0 10px 0', color: '#666' }}>{item.subject} · ₹{item.price}</p>
+              <p><strong>License Key:</strong> <code>{item.license_key}</code></p>
+              <a 
+                href={item.file_url || `${API_BASE}/uploads/${item.filename}`} 
+                target="_blank" 
+                rel="noreferrer"
+                className="btn-primary" 
+                style={{ display: 'inline-block', padding: '8px 16px', textDecoration: 'none', borderRadius: '4px' }}
+              >
+                📄 Open / Download PDF
+              </a>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }

@@ -1,62 +1,63 @@
-// Ee file - Mock purchase, UUID key generate cheyadam, email pampadam
 const express = require('express');
 const router = express.Router();
 const { v4: uuidv4 } = require('uuid');
 const db = require('../config/db');
 const sendLicenseEmail = require('../utils/mailer');
 
+// 1. Purchase Route
 router.post('/purchase', async (req, res) => {
   try {
-    const { note_id, buyer_email } = req.body;
+    const { note_id, buyer_email, user_id } = req.body;
 
-    // 1. Note details tesukuntam
     const [[note]] = await db.query('SELECT * FROM notes WHERE id = ?', [note_id]);
     if (!note) {
       return res.status(404).json({ success: false, error: 'Note not found' });
     }
 
-    // 2. Buyer ni users table lo check cheyadam
-    let [[user]] = await db.query('SELECT * FROM users WHERE email = ?', [buyer_email]);
-    if (!user) {
-      const [userResult] = await db.query(
-        'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-        [buyer_email.split('@')[0], buyer_email, 'no_password_mock', 'student']
-      );
-      user = { id: userResult.insertId };
+    let finalUserId = user_id;
+
+    // Login user ID lekapothe email tho check cheyadam
+    if (!finalUserId) {
+      let [[user]] = await db.query('SELECT * FROM users WHERE email = ?', [buyer_email]);
+      if (!user) {
+        const [userResult] = await db.query(
+          'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+          [buyer_email.split('@')[0], buyer_email, 'no_password_mock', 'student']
+        );
+        finalUserId = userResult.insertId;
+      } else {
+        finalUserId = user.id;
+      }
     }
 
-    // 3. Orders table lo save cheyadam
+    // Orders table lo entry
     const [orderResult] = await db.query(
       'INSERT INTO orders (user_id, note_id) VALUES (?, ?)',
-      [user.id, note_id]
+      [finalUserId, note_id]
     );
     const orderId = orderResult.insertId;
 
-    // 4. UUID license key generate cheyadam
+    // License key create cheyadam
     const licenseKey = uuidv4();
     await db.query(
       'INSERT INTO license_keys (order_id, uuid) VALUES (?, ?)',
       [orderId, licenseKey]
     );
 
-    // 5. Download link create cheyadam
-    const downloadLink = `https://notes-marketplace-api.onrender.com/uploads/${note.filename}`;
+    // Actual file link (file_url unte adi, lekapothe uploads path)
+    const downloadLink = note.file_url || `https://notes-marketplace-api.onrender.com/uploads/${note.filename}`;
 
-    // 6. Email background lo pampadam (request aagakunda untundi)
+    // Non-blocking Email
     try {
       if (typeof sendLicenseEmail === 'function') {
         sendLicenseEmail(buyer_email, note.title, licenseKey, downloadLink).catch(err => {
-          console.error('Email sending failed (non-blocking):', err.message);
+          console.error('Email error:', err.message);
         });
       }
-    } catch (mailErr) {
-      console.error('Mail trigger error:', mailErr.message);
-    }
+    } catch (mailErr) {}
 
-    // 7. downloads_count +1
     await db.query('UPDATE notes SET downloads_count = downloads_count + 1 WHERE id = ?', [note_id]);
 
-    // Fast ga response pampadam
     return res.json({ success: true, licenseKey, downloadLink });
   } catch (err) {
     console.error('Purchase route error:', err);
@@ -64,13 +65,11 @@ router.post('/purchase', async (req, res) => {
   }
 });
 
-// ==========================================
-// ROUTE: Oka user konna notes anni (My Purchases page kosam)
-// ==========================================
+// 2. User konna notes anni fetch chese route
 router.get('/my/:userId', async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT o.id AS order_id, n.title, n.subject, n.price, n.filename,
+      `SELECT o.id AS order_id, n.title, n.subject, n.price, n.file_url, n.filename,
               lk.uuid AS license_key, o.purchase_date
        FROM orders o
        JOIN notes n ON o.note_id = n.id
