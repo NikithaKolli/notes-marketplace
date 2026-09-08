@@ -1,79 +1,94 @@
-// Ee file - Mock purchase, UUID key generate cheyadam, email pampadam
-const express = require('express');
-const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const db = require('../config/db');
-const sendLicenseEmail = require('../utils/mailer');
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
-router.post('/purchase', async (req, res) => {
-  try {
-    const { note_id, buyer_email } = req.body;
+function NoteDetails({ noteId, onBack }) {
+  const [note, setNote] = useState(null);
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(true);
 
-    // 1. Ee note ekkada undo, MySQL nunchi details tesukuntam
-    const [[note]] = await db.query('SELECT * FROM notes WHERE id = ?', [note_id]);
-    if (!note) {
-      return res.status(404).json({ success: false, error: 'Note not found' });
+  const API_BASE = 'https://notes-marketplace-api.onrender.com';
+
+  useEffect(() => {
+    if (!noteId) return;
+    setLoading(true);
+
+    axios.get(`${API_BASE}/api/notes/${noteId}`)
+      .then((res) => {
+        setNote(res.data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [noteId]);
+
+  const handleBuy = async () => {
+    if (!email) {
+      setStatus('❌ Please enter your email first');
+      return;
     }
+    setStatus('Processing...');
 
-    // 2. Buyer ni users table lo pettadam (ledante already unte, athanine vadadam)
-    let [[user]] = await db.query('SELECT * FROM users WHERE email = ?', [buyer_email]);
-    if (!user) {
-      const [userResult] = await db.query(
-        'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-        [buyer_email.split('@')[0], buyer_email, 'no_password_mock', 'student']
-      );
-      user = { id: userResult.insertId };
+    try {
+      const res = await axios.post(`${API_BASE}/api/orders/purchase`, {
+        note_id: noteId,
+        buyer_email: email
+      });
+
+      if (res.data.success) {
+        setStatus(`✅ Purchase successful! License Key: ${res.data.licenseKey}. Check your email.`);
+      } else {
+        setStatus(`❌ Error: ${res.data.error || 'Purchase failed'}`);
+      }
+    } catch (err) {
+      const errMsg = err.response?.data?.error || err.response?.data?.message || err.message;
+      setStatus(`❌ Error: ${errMsg}`);
     }
+  };
 
-    // 3. Orders table lo save cheyadam
-    const [orderResult] = await db.query(
-      'INSERT INTO orders (user_id, note_id) VALUES (?, ?)',
-      [user.id, note_id]
+  if (loading) return <p style={{ textAlign: 'center', marginTop: '40px' }}>Loading note details...</p>;
+
+  if (!note) {
+    return (
+      <div className="page-narrow" style={{ textAlign: 'center', marginTop: '40px' }}>
+        <p>Note not found or failed to load.</p>
+        <button className="btn-secondary" onClick={onBack}>← Back to Catalog</button>
+      </div>
     );
-    const orderId = orderResult.insertId;
-
-    // 4. UUID license key generate cheyadam
-    const licenseKey = uuidv4();
-    await db.query(
-      'INSERT INTO license_keys (order_id, uuid) VALUES (?, ?)',
-      [orderId, licenseKey]
-    );
-
-    // 5. Download link create cheyadam
-    const downloadLink = `https://notes-marketplace-api.onrender.com/uploads/${note.filename}`;
-
-    // 6. Email pampadam
-    await sendLicenseEmail(buyer_email, note.title, licenseKey, downloadLink);
-
-    // 7. downloads_count +1 cheyadam (Top Downloads feature kosam)
-    await db.query('UPDATE notes SET downloads_count = downloads_count + 1 WHERE id = ?', [note_id]);
-
-    res.json({ success: true, licenseKey, downloadLink });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: err.message });
   }
-});
 
-// ==========================================
-// ROUTE: Oka user konna notes anni (My Purchases page kosam)
-// ==========================================
-router.get('/my/:userId', async (req, res) => {
-  try {
-    const [rows] = await db.query(
-      `SELECT o.id AS order_id, n.title, n.subject, n.price, n.filename,
-              lk.uuid AS license_key, o.purchase_date
-       FROM orders o
-       JOIN notes n ON o.note_id = n.id
-       JOIN license_keys lk ON lk.order_id = o.id
-       WHERE o.user_id = ?
-       ORDER BY o.purchase_date DESC`,
-      [req.params.userId]
-    );
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
+  return (
+    <div className="page-narrow">
+      <button className="btn-secondary" onClick={onBack} style={{ marginBottom: '20px' }}>← Back to Catalog</button>
+      <span className="eyebrow">{note.subject} · {note.semester}</span>
+      <h2>{note.title}</h2>
+      <p>{note.description}</p>
+      <p className={`price ${note.price == 0 ? 'free' : ''}`} style={{ fontSize: '22px' }}>
+        {note.price == 0 ? 'FREE' : `₹${note.price}`}
+      </p>
 
-module.exports = router;
+      {/* PDF View Button */}
+      {note.file_url && (
+        <div style={{ margin: '15px 0' }}>
+          <a href={note.file_url} target="_blank" rel="noreferrer" className="btn-secondary" style={{ display: 'inline-block', textDecoration: 'none' }}>
+            📄 View / Download PDF
+          </a>
+        </div>
+      )}
+
+      <input
+        type="email"
+        placeholder="Your email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <button className="btn-primary" onClick={handleBuy}>Buy Now (Mock)</button>
+
+      {status && <p className="status-msg">{status}</p>}
+    </div>
+  );
+}
+
+export default NoteDetails;
