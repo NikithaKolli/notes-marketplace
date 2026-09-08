@@ -1,27 +1,33 @@
-// Ee file Gmail dwara email pampadaniki
 const nodemailer = require('nodemailer');
-require('dotenv').config();
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 587,
+  secure: false, // port 587 kosam false undali
+  family: 4,     // IPv4 ni force chesthundi (ENETUNREACH error raakunda)
   auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_APP_PASSWORD
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  tls: {
+    rejectUnauthorized: false
   }
 });
 
-const sendLicenseEmail = async (toEmail, noteTitle, licenseKey, downloadLink) => {
-  await transporter.sendMail({
-    from: `"College Notes Marketplace" <${process.env.GMAIL_USER}>`,
-    to: toEmail,
-    subject: `Your purchase: ${noteTitle}`,
+const sendLicenseEmail = async (to, noteTitle, licenseKey, downloadLink) => {
+  const mailOptions = {
+    from: `"Notes Marketplace" <${process.env.EMAIL_USER}>`,
+    to: to,
+    subject: `Your License Key for ${noteTitle}`,
     html: `
-      <h2>Payment Successful!</h2>
-      <p><b>Note:</b> ${noteTitle}</p>
-      <p><b>License Key:</b> ${licenseKey}</p>
-      <p><b>Download:</b> <a href="${downloadLink}">Click here to download</a></p>
-    `
-  });
+      <h2>Thank you for your purchase!</h2>
+      <p>Here is your license key for <strong>${noteTitle}</strong>:</p>
+      <div style="background:#f4f4f4;padding:10px;font-size:18px;font-weight:bold;">${licenseKey}</div>
+      <p><a href="${downloadLink}">Click here to download your notes</a></p>
+    `,
+  };
+
+  return transporter.sendMail(mailOptions);
 };
 
 module.exports = sendLicenseEmail;
