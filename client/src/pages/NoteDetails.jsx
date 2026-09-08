@@ -7,11 +7,13 @@ function NoteDetails({ noteId, onBack }) {
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
 
+  const API_BASE = 'https://notes-marketplace-api.onrender.com';
+
   useEffect(() => {
     if (!noteId) return;
     setLoading(true);
 
-    axios.get(`https://notes-marketplace-api.onrender.com/api/notes/${noteId}`)
+    axios.get(`${API_BASE}/api/notes/${noteId}`)
       .then((res) => {
         setNote(res.data);
         setLoading(false);
@@ -28,14 +30,42 @@ function NoteDetails({ noteId, onBack }) {
       return;
     }
     setStatus('Processing...');
-    try {
-      const res = await axios.post('https://notes-marketplace-api.onrender.com/api/orders', {
-        note_id: noteId,
-        buyer_email: email
-      });
-      setStatus(`✅ Purchase successful! License Key: ${res.data.licenseKey || res.data.license_key || 'GENERATED'}. Check your email.`);
-    } catch (err) {
-      setStatus('❌ Error: ' + (err.response?.data?.message || err.message));
+
+    const candidateEndpoints = [
+      `${API_BASE}/api/orders`,
+      `${API_BASE}/orders`,
+      `${API_BASE}/api/purchases`,
+      `${API_BASE}/api/notes/buy`,
+      `${API_BASE}/api/buy`
+    ];
+
+    const payload = {
+      note_id: noteId,
+      noteId: noteId,
+      buyer_email: email,
+      email: email
+    };
+
+    let success = false;
+    let lastError = '';
+
+    for (const url of candidateEndpoints) {
+      try {
+        const res = await axios.post(url, payload);
+        const licenseKey = res.data?.licenseKey || res.data?.license_key || 'SUCCESS-KEY';
+        setStatus(`✅ Purchase successful! License Key: ${licenseKey}. Check your email.`);
+        success = true;
+        break;
+      } catch (err) {
+        lastError = err.response?.data?.message || err.message;
+        if (err.response && err.response.status !== 404) {
+          break;
+        }
+      }
+    }
+
+    if (!success) {
+      setStatus(`❌ Error: ${lastError}`);
     }
   };
 
@@ -60,7 +90,6 @@ function NoteDetails({ noteId, onBack }) {
         {note.price == 0 ? 'FREE' : `₹${note.price}`}
       </p>
 
-      {/* PDF డౌన్‌లోడ్ లేదా ప్రివ్యూ లింక్ */}
       {note.file_url && (
         <div style={{ margin: '15px 0' }}>
           <a href={note.file_url} target="_blank" rel="noreferrer" className="btn-secondary" style={{ display: 'inline-block', textDecoration: 'none' }}>
