@@ -31,14 +31,14 @@ function NoteDetails({ noteId, onBack }) {
     }
     setStatus('Processing...');
 
-    // LocalStorage nunchi login user data teesukuntam
+    // LocalStorage nunchi login ayina user info tesukuntam
     const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
 
     try {
       const res = await axios.post(`${API_BASE}/api/orders/purchase`, {
         note_id: noteId,
         buyer_email: email,
-        user_id: storedUser.id || null
+        user_id: storedUser.id || null  // <-- Ikkada login user ID velthundi
       });
 
       if (res.data && res.data.success) {

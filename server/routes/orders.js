@@ -85,3 +85,11 @@ router.get('/my/:userId', async (req, res) => {
 });
 
 module.exports = router;
+// 3. Orders table lo save cheyadam
+    // Login user_id unte daanike order assign cheyali
+    const orderUserId = user_id || user.id;
+
+    const [orderResult] = await db.query(
+      'INSERT INTO orders (user_id, note_id) VALUES (?, ?)',
+      [orderUserId, note_id]
+    );
