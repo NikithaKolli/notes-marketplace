@@ -1,33 +1,24 @@
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false, // port 587 kosam false undali
-  family: 4,     // IPv4 ni force chesthundi (ENETUNREACH error raakunda)
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendLicenseEmail = async (to, noteTitle, licenseKey, downloadLink) => {
-  const mailOptions = {
-    from: `"Notes Marketplace" <${process.env.EMAIL_USER}>`,
-    to: to,
-    subject: `Your License Key for ${noteTitle}`,
-    html: `
-      <h2>Thank you for your purchase!</h2>
-      <p>Here is your license key for <strong>${noteTitle}</strong>:</p>
-      <div style="background:#f4f4f4;padding:10px;font-size:18px;font-weight:bold;">${licenseKey}</div>
-      <p><a href="${downloadLink}">Click here to download your notes</a></p>
-    `,
-  };
-
-  return transporter.sendMail(mailOptions);
+  try {
+    const data = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: to,
+      subject: `Your License Key for ${noteTitle}`,
+      html: `
+        <h2>Thank you for your purchase!</h2>
+        <p>Here is your license key for <strong>${noteTitle}</strong>:</p>
+        <div style="background:#f4f4f4;padding:10px;font-size:18px;font-weight:bold;">${licenseKey}</div>
+        <p><a href="${downloadLink}">Click here to download your notes</a></p>
+      `,
+    });
+    console.log('Email sent successfully:', data);
+  } catch (err) {
+    console.error('Resend email error:', err);
+  }
 };
 
 module.exports = sendLicenseEmail;
