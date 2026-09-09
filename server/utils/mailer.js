@@ -1,25 +1,39 @@
-const { Resend } = require('resend');
+const Brevo = require('@getbrevo/brevo');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const apiInstance = new Brevo.TransactionalEmailsApi();
+apiInstance.setApiKey(
+  Brevo.TransactionalEmailsApiApiKeys.apiKey,
+  process.env.BREVO_API_KEY
+);
 
 const sendLicenseEmail = async (to, noteTitle, licenseKey, downloadLink) => {
   try {
-    console.log(`Attempting to send email to ${to} using Resend...`);
-    const data = await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: [to],
-      subject: `Your License Key for ${noteTitle}`,
-      html: `
-        <h2>Thank you for your purchase!</h2>
-        <p>Here is your license key for <strong>${noteTitle}</strong>:</p>
-        <div style="background:#f4f4f4;padding:10px;font-size:18px;font-weight:bold;">${licenseKey}</div>
-        <p><a href="${downloadLink}">Click here to download your notes</a></p>
-      `,
-    });
-    console.log('Resend Success Response:', data);
-    return data;
+    const sendSmtpEmail = new Brevo.SendSmtpEmail();
+
+    sendSmtpEmail.subject = `Your License Key for ${noteTitle}`;
+    sendSmtpEmail.htmlContent = `
+      <h2>Thank you for your purchase!</h2>
+      <p>Here is your license key for <strong>${noteTitle}</strong>:</p>
+      <div style="background:#f4f4f4;padding:12px;font-size:18px;font-weight:bold;letter-spacing:1px;">
+        ${licenseKey}
+      </div>
+      <p style="margin-top:15px;">
+        <a href="${downloadLink}" style="background:#007bff;color:white;padding:10px 15px;text-decoration:none;border-radius:4px;">
+          Click here to download your notes
+        </a>
+      </p>
+    `;
+    sendSmtpEmail.sender = {
+      name: "Notes Marketplace",
+      email: process.env.SENDER_EMAIL || "kollinikithareddy46@gmail.com"
+    };
+    sendSmtpEmail.to = [{ email: to }];
+
+    const response = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    console.log('Brevo Email sent successfully to:', to, response);
+    return response;
   } catch (err) {
-    console.error('Resend Exception Occurred:', err.message || err);
+    console.error('Brevo Email error:', err.response ? err.response.body : err.message);
   }
 };
 
