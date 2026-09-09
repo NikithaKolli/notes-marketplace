@@ -62,25 +62,32 @@ router.post('/purchase', async (req, res) => {
   }
 });
 
-// 2. User కొన్న నోట్స్ అన్నీ Fetch చేయడం (User ID లేదా Email రెండింటినీ చెక్ చేస్తుంది)
+// 2. User కొన్న నోట్స్ అన్నీ Fetch చేయడం
 router.get('/my/:userId', async (req, res) => {
   try {
     const param = req.params.userId;
 
     const [rows] = await db.query(
-      `SELECT o.id AS order_id, n.title, n.subject, n.price, n.file_url, n.filename,
-              lk.uuid AS license_key, o.purchase_date
+      `SELECT 
+         o.id AS order_id, 
+         n.title, 
+         n.subject, 
+         n.price, 
+         n.file_url, 
+         n.filename,
+         lk.uuid AS license_key
        FROM orders o
        JOIN notes n ON o.note_id = n.id
-       JOIN license_keys lk ON lk.order_id = o.id
-       JOIN users u ON o.user_id = u.id
-       WHERE u.id = ? OR u.email = ?
-       ORDER BY o.purchase_date DESC`,
-      [param, param]
+       LEFT JOIN license_keys lk ON lk.order_id = o.id
+       LEFT JOIN users u ON o.user_id = u.id
+       WHERE u.id = ? OR u.email = ? OR o.user_id = ?
+       ORDER BY o.id DESC`,
+      [param, param, param]
     );
+
     res.json(rows);
   } catch (err) {
-    console.error('Fetch purchases error:', err);
+    console.error('Fetch purchases error:', err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
