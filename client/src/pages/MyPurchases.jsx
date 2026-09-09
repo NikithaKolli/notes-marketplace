@@ -9,18 +9,20 @@ function MyPurchases({ user }) {
 
   useEffect(() => {
     const currentUser = user || JSON.parse(localStorage.getItem('user') || '{}');
-    if (!currentUser?.id) {
+    const userIdentifier = currentUser?.id || currentUser?.email;
+
+    if (!userIdentifier) {
       setLoading(false);
       return;
     }
 
-    axios.get(`${API_BASE}/api/orders/my/${currentUser.id}`)
+    axios.get(`${API_BASE}/api/orders/my/${userIdentifier}`)
       .then((res) => {
         setPurchases(res.data);
         setLoading(false);
       })
       .catch((err) => {
-        console.error(err);
+        console.error('Error fetching purchases:', err);
         setLoading(false);
       });
   }, [user]);

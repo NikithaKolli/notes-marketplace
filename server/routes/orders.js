@@ -16,10 +16,10 @@ router.post('/purchase', async (req, res) => {
 
     let finalUserId = user_id;
 
-    // User ID lekapothe email base chesukuni correct user ni vetakadam / create cheyadam
-    let [[existingUser]] = await db.query('SELECT * FROM users WHERE email = ?', [buyer_email]);
-    if (existingUser) {
-      finalUserId = existingUser.id;
+    // Buyer email తో ఉన్న యూజర్‌ని వెతకడం
+    let [[user]] = await db.query('SELECT * FROM users WHERE email = ?', [buyer_email]);
+    if (user) {
+      finalUserId = user.id;
     } else if (!finalUserId) {
       const [newUser] = await db.query(
         'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
@@ -28,14 +28,14 @@ router.post('/purchase', async (req, res) => {
       finalUserId = newUser.insertId;
     }
 
-    // Orders table lo save cheyadam
+    // Orders table లో ఎంట్రీ
     const [orderResult] = await db.query(
       'INSERT INTO orders (user_id, note_id) VALUES (?, ?)',
       [finalUserId, note_id]
     );
     const orderId = orderResult.insertId;
 
-    // License key create cheyadam
+    // License key create చేయడం
     const licenseKey = uuidv4();
     await db.query(
       'INSERT INTO license_keys (order_id, uuid) VALUES (?, ?)',
@@ -44,12 +44,14 @@ router.post('/purchase', async (req, res) => {
 
     const downloadLink = note.file_url || `https://notes-marketplace-api.onrender.com/uploads/${note.filename}`;
 
-    // Resend Email Triggering
-    if (typeof sendLicenseEmail === 'function') {
-      sendLicenseEmail(buyer_email, note.title, licenseKey, downloadLink).catch(err => {
-        console.error('Mail trigger error:', err);
-      });
-    }
+    // Non-blocking Email
+    try {
+      if (typeof sendLicenseEmail === 'function') {
+        sendLicenseEmail(buyer_email, note.title, licenseKey, downloadLink).catch(err => {
+          console.error('Brevo Email error:', err);
+        });
+      }
+    } catch (mailErr) {}
 
     await db.query('UPDATE notes SET downloads_count = downloads_count + 1 WHERE id = ?', [note_id]);
 
@@ -60,10 +62,10 @@ router.post('/purchase', async (req, res) => {
   }
 });
 
-// 2. User konna notes fetch cheyadam (User ID leda Email tho)
+// 2. User కొన్న నోట్స్ అన్నీ Fetch చేయడం (User ID లేదా Email రెండింటినీ చెక్ చేస్తుంది)
 router.get('/my/:userId', async (req, res) => {
   try {
-    const userIdOrEmail = req.params.userId;
+    const param = req.params.userId;
 
     const [rows] = await db.query(
       `SELECT o.id AS order_id, n.title, n.subject, n.price, n.file_url, n.filename,
@@ -74,11 +76,11 @@ router.get('/my/:userId', async (req, res) => {
        JOIN users u ON o.user_id = u.id
        WHERE u.id = ? OR u.email = ?
        ORDER BY o.purchase_date DESC`,
-      [userIdOrEmail, userIdOrEmail]
+      [param, param]
     );
     res.json(rows);
   } catch (err) {
-    console.error('My purchases error:', err);
+    console.error('Fetch purchases error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
