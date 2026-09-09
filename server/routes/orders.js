@@ -16,21 +16,19 @@ router.post('/purchase', async (req, res) => {
 
     let finalUserId = user_id;
 
-    // Login user ID lekapothe email tho check cheyadam
-    if (!finalUserId) {
-      let [[user]] = await db.query('SELECT * FROM users WHERE email = ?', [buyer_email]);
-      if (!user) {
-        const [userResult] = await db.query(
-          'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-          [buyer_email.split('@')[0], buyer_email, 'no_password_mock', 'student']
-        );
-        finalUserId = userResult.insertId;
-      } else {
-        finalUserId = user.id;
-      }
+    // User ID lekapothe email base chesukuni correct user ni vetakadam / create cheyadam
+    let [[existingUser]] = await db.query('SELECT * FROM users WHERE email = ?', [buyer_email]);
+    if (existingUser) {
+      finalUserId = existingUser.id;
+    } else if (!finalUserId) {
+      const [newUser] = await db.query(
+        'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+        [buyer_email.split('@')[0], buyer_email, 'no_password_mock', 'student']
+      );
+      finalUserId = newUser.insertId;
     }
 
-    // Orders table lo entry
+    // Orders table lo save cheyadam
     const [orderResult] = await db.query(
       'INSERT INTO orders (user_id, note_id) VALUES (?, ?)',
       [finalUserId, note_id]
@@ -44,17 +42,14 @@ router.post('/purchase', async (req, res) => {
       [orderId, licenseKey]
     );
 
-    // Actual file link (file_url unte adi, lekapothe uploads path)
     const downloadLink = note.file_url || `https://notes-marketplace-api.onrender.com/uploads/${note.filename}`;
 
-    // Non-blocking Email
-    try {
-      if (typeof sendLicenseEmail === 'function') {
-        sendLicenseEmail(buyer_email, note.title, licenseKey, downloadLink).catch(err => {
-          console.error('Email error:', err.message);
-        });
-      }
-    } catch (mailErr) {}
+    // Resend Email Triggering
+    if (typeof sendLicenseEmail === 'function') {
+      sendLicenseEmail(buyer_email, note.title, licenseKey, downloadLink).catch(err => {
+        console.error('Mail trigger error:', err);
+      });
+    }
 
     await db.query('UPDATE notes SET downloads_count = downloads_count + 1 WHERE id = ?', [note_id]);
 
@@ -65,21 +60,25 @@ router.post('/purchase', async (req, res) => {
   }
 });
 
-// 2. User konna notes anni fetch chese route
+// 2. User konna notes fetch cheyadam (User ID leda Email tho)
 router.get('/my/:userId', async (req, res) => {
   try {
+    const userIdOrEmail = req.params.userId;
+
     const [rows] = await db.query(
       `SELECT o.id AS order_id, n.title, n.subject, n.price, n.file_url, n.filename,
               lk.uuid AS license_key, o.purchase_date
        FROM orders o
        JOIN notes n ON o.note_id = n.id
        JOIN license_keys lk ON lk.order_id = o.id
-       WHERE o.user_id = ?
+       JOIN users u ON o.user_id = u.id
+       WHERE u.id = ? OR u.email = ?
        ORDER BY o.purchase_date DESC`,
-      [req.params.userId]
+      [userIdOrEmail, userIdOrEmail]
     );
     res.json(rows);
   } catch (err) {
+    console.error('My purchases error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

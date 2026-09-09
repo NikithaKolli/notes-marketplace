@@ -4,9 +4,10 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendLicenseEmail = async (to, noteTitle, licenseKey, downloadLink) => {
   try {
+    console.log(`Attempting to send email to ${to} using Resend...`);
     const data = await resend.emails.send({
       from: 'onboarding@resend.dev',
-      to: to,
+      to: [to],
       subject: `Your License Key for ${noteTitle}`,
       html: `
         <h2>Thank you for your purchase!</h2>
@@ -15,9 +16,10 @@ const sendLicenseEmail = async (to, noteTitle, licenseKey, downloadLink) => {
         <p><a href="${downloadLink}">Click here to download your notes</a></p>
       `,
     });
-    console.log('Email sent successfully:', data);
+    console.log('Resend Success Response:', data);
+    return data;
   } catch (err) {
-    console.error('Resend email error:', err);
+    console.error('Resend Exception Occurred:', err.message || err);
   }
 };
 
